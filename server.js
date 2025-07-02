@@ -17,7 +17,7 @@ app.prepare().then(() => {
 
   const io = new Server(server, {
     cors: {
-      origin:"https://chat-app-production-9bba.up.railway.app",,
+      origin:"https://chat-app-production-9bba.up.railway.app",
       methods: ["GET", "POST"]
     }
   });
