@@ -6,7 +6,7 @@ import { io, Socket } from "socket.io-client";
 // To configure the socket server URL, set NEXT_PUBLIC_SOCKET_URL in your .env file. Falls back to localhost:3000 if not set.
 let socket: Socket | null = null;
 
-async function uploadToCloudinary(file) {
+async function uploadToCloudinary(file: File) {
   const url = `https://api.cloudinary.com/v1_1/dxa6nrlld/auto/upload`;
   const formData = new FormData();
   formData.append('file', file);
