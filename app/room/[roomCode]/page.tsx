@@ -70,41 +70,56 @@ export default function RoomPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setMediaFile(file);
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setMediaPreview(ev.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (file) {
+    setMediaFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setMediaPreview(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
+};
+ const sendMessage = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const msg: Message = { text: input, sender: username };
 
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const msg: Message = { text: input, sender: username };
+  // Handle demo GIF picker
+  if (gifUrl) {
+    msg.gif = gifUrl;
+  }
 
-
-    if (gifUrl) msg.gif = gifUrl;
-
-    if (mediaFile) {
-      // Upload to Cloudinary
+  // Handle file upload (but don't override demo GIF)
+  if (mediaFile && !gifUrl) {
+    try {
       const result = await uploadToCloudinary(mediaFile);
       const type = mediaFile.type;
-      if (type === "image/gif") msg.gif = result.secure_url;
-      else if (type.startsWith("image/")) msg.image = result.secure_url;
-      else if (type.startsWith("video/")) msg.video = result.secure_url;
+      
+      if (type === "image/gif") {
+        msg.gif = result.secure_url;
+      } else if (type.startsWith("image/")) {
+        msg.image = result.secure_url;
+      } else if (type.startsWith("video/")) {
+        msg.video = result.secure_url;
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      // Handle upload error - maybe show user feedback
+      return;
     }
+  }
 
-    socket?.emit("send-message", { roomCode, message: msg });
-    setInput("");
-    setGifUrl("");
-    setShowGif(false);
-    setMediaFile(null);
-    setMediaPreview("");
-  };
+  socket?.emit("send-message", { roomCode, message: msg });
+  
+  // Clear all inputs
+  setInput("");
+  setGifUrl("");
+  setShowGif(false);
+  setMediaFile(null);
+  setMediaPreview("");
+};
+
   
 
   // Placeholder for GIF picker
