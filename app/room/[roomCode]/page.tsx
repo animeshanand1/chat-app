@@ -6,13 +6,27 @@ import { io, Socket } from "socket.io-client";
 // To configure the socket server URL, set NEXT_PUBLIC_SOCKET_URL in your .env file. Falls back to localhost:3000 if not set.
 let socket: Socket | null = null;
 
+async function uploadToCloudinary(file) {
+  const url = `https://api.cloudinary.com/v1_1/dxa6nrlld/auto/upload`;
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', 'dscbxoj0');
+
+  const res = await fetch(url, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) throw new Error('Upload failed');
+  return res.json(); // Contains .secure_url
+}
+
 export default function RoomPage() {
   const params = useParams();
   let roomCode = params.roomCode;
   if (Array.isArray(roomCode)) roomCode = roomCode[0];
   roomCode = typeof roomCode === "string" ? roomCode : "";
 
-  const [messages, setMessages] = useState<{ text: string; gif?: string; sender: string }[]>([]);
+  const [messages, setMessages] = useState<{ text: string; gif?: string; image?: string; video?: string; sender: string }[]>([]);
   const [input, setInput] = useState("");
   const [showGif, setShowGif] = useState(false);
   const [gifUrl, setGifUrl] = useState("");
@@ -20,6 +34,8 @@ export default function RoomPage() {
   const [usernameInput, setUsernameInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [hasMounted, setHasMounted] = useState(false);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string>("");
 
   useEffect(() => {
     setHasMounted(true);
@@ -29,7 +45,7 @@ export default function RoomPage() {
     console.log("roomCode:", roomCode, "username:", username);
     if (!roomCode) return;
     if (!socket) {
-      socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "https://chat-app-production-9bba.up.railway.app");
+      socket = io("https://chat-app-production-9bba.up.railway.app" || "http://localhost:3000");
     }
     if (username) {
       socket.emit("join-room", { roomCode, username });
@@ -46,16 +62,39 @@ export default function RoomPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if ((input.trim() || gifUrl) && username && roomCode) {
-      const msg = gifUrl ? { text: input, gif: gifUrl, sender: username } : { text: input, sender: username };
-      console.log("Sending message:", msg); // ✅ Add this log
-      socket?.emit("send-message", { roomCode, message: msg });
-      setInput("");
-      setGifUrl("");
-      setShowGif(false);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setMediaFile(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setMediaPreview(ev.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
+  };
+
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    let msg: any = { text: input, sender: username };
+
+    if (gifUrl) msg.gif = gifUrl;
+
+    if (mediaFile) {
+      // Upload to Cloudinary
+      const result = await uploadToCloudinary(mediaFile);
+      const type = mediaFile.type;
+      if (type === "image/gif") msg.gif = result.secure_url;
+      else if (type.startsWith("image/")) msg.image = result.secure_url;
+      else if (type.startsWith("video/")) msg.video = result.secure_url;
+    }
+
+    socket?.emit("send-message", { roomCode, message: msg });
+    setInput("");
+    setGifUrl("");
+    setShowGif(false);
+    setMediaFile(null);
+    setMediaPreview("");
   };
   
 
@@ -130,6 +169,8 @@ export default function RoomPage() {
                   >
                     {msg.text}
                     {msg.gif && <div><img src={msg.gif} alt="gif" style={{ maxHeight: 120, marginTop: 6 }} /></div>}
+                    {msg.image && <div><img src={msg.image} alt="img" style={{ maxHeight: 120, marginTop: 6 }} /></div>}
+                    {msg.video && <div><video src={msg.video} controls style={{ maxHeight: 120, marginTop: 6 }} /></div>}
                   </div>
                 </>
               )}
@@ -146,6 +187,16 @@ export default function RoomPage() {
           placeholder="Type a message..."
           style={{ flex: 1, padding: 8 }}
         />
+        <input
+          type="file"
+          accept="image/*,video/*,image/gif"
+          style={{ display: "none" }}
+          id="media-upload"
+          onChange={handleFileChange}
+        />
+        <label htmlFor="media-upload" style={{ padding: 8, cursor: "pointer", background: "#eee", borderRadius: 4 }}>
+          📎
+        </label>
         <button type="button" onClick={() => setShowGif(!showGif)} style={{ padding: 8 }}>
           GIF
         </button>
@@ -159,6 +210,12 @@ export default function RoomPage() {
       {gifUrl && (
         <div style={{ marginTop: 8 }}>
           <img src={gifUrl} alt="Selected gif" style={{ maxHeight: 80 }} />
+        </div>
+      )}
+      {mediaPreview && (
+        <div style={{ marginTop: 8 }}>
+          {mediaFile?.type.startsWith("image/") && <img src={mediaPreview} alt="preview" style={{ maxHeight: 80 }} />}
+          {mediaFile?.type.startsWith("video/") && <video src={mediaPreview} controls style={{ maxHeight: 120 }} />}
         </div>
       )}
     </main>
