@@ -53,7 +53,7 @@ export default function RoomPage() {
     console.log("roomCode:", roomCode, "username:", username);
     if (!roomCode) return;
     if (!socket) {
-      socket = io("https://chat-app-production-9bba.up.railway.app" || "http://localhost:3000");
+      socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "https://chat-app-production-9bba.up.railway.app");
     }
     if (username) {
       socket.emit("join-room", { roomCode, username });
