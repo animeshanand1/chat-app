@@ -2,11 +2,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
+import Image from 'next/image';
 
+type Message = {
+  text: string;
+  gif?: string;
+  image?: string;
+  video?: string;
+  sender: string | null;
+};
 // To configure the socket server URL, set NEXT_PUBLIC_SOCKET_URL in your .env file. Falls back to localhost:3000 if not set.
 let socket: Socket | null = null;
 
-async function uploadToCloudinary(file: File): Promise<any> {
+async function uploadToCloudinary(file: File): Promise<{ secure_url: string }> {
   const url = `https://api.cloudinary.com/v1_1/dxa6nrlld/auto/upload`;
   const formData = new FormData();
   formData.append('file', file);
@@ -76,7 +84,7 @@ export default function RoomPage() {
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    const msg: any = { text: input, sender: username };
+    const msg: Message = { text: input, sender: username };
 
 
     if (gifUrl) msg.gif = gifUrl;
@@ -169,8 +177,28 @@ export default function RoomPage() {
                     }}
                   >
                     {msg.text}
-                    {msg.gif && <div><img src={msg.gif} alt="gif" style={{ maxHeight: 120, marginTop: 6 }} /></div>}
-                    {msg.image && <div><img src={msg.image} alt="img" style={{ maxHeight: 120, marginTop: 6 }} /></div>}
+                   {msg.gif && (
+  <div>
+    <Image
+      src={msg.gif}
+      alt="gif"
+      width={200}
+      height={200}
+      style={{ objectFit: 'cover', marginTop: 6 }}
+    />
+  </div>
+)}
+                    {msg.image && (
+  <div style={{ marginTop: 6 }}>
+    <Image
+      src={msg.image}
+      alt="img"
+      width={200}
+      height={200}
+      style={{ objectFit: 'cover' }}
+    />
+  </div>
+)}
                     {msg.video && <div><video src={msg.video} controls style={{ maxHeight: 120, marginTop: 6 }} /></div>}
                   </div>
                 </>
@@ -208,17 +236,34 @@ export default function RoomPage() {
           <button onClick={handleGif}>Pick Demo GIF</button>
         </div>
       )}
-      {gifUrl && (
-        <div style={{ marginTop: 8 }}>
-          <img src={gifUrl} alt="Selected gif" style={{ maxHeight: 80 }} />
-        </div>
-      )}
-      {mediaPreview && (
-        <div style={{ marginTop: 8 }}>
-          {mediaFile?.type.startsWith("image/") && <img src={mediaPreview} alt="preview" style={{ maxHeight: 80 }} />}
-          {mediaFile?.type.startsWith("video/") && <video src={mediaPreview} controls style={{ maxHeight: 120 }} />}
-        </div>
-      )}
+    {gifUrl && (
+  <div style={{ marginTop: 8 }}>
+    <Image
+      src={gifUrl}
+      alt="selected gif"
+      width={300}
+      height={300}
+      style={{ objectFit: 'cover', marginTop: 10 }}
+    />
+  </div>
+)}
+
+     {mediaPreview && (
+  <div style={{ marginTop: 8 }}>
+    {mediaFile?.type.startsWith("image/") && (
+      <Image
+        src={mediaPreview}
+        alt="preview"
+        width={300}
+        height={300}
+        style={{ objectFit: 'cover', marginTop: 10 }}
+      />
+    )}
+    {mediaFile?.type.startsWith("video/") && (
+      <video src={mediaPreview} controls style={{ maxHeight: 120 }} />
+    )}
+  </div>
+)}
     </main>
   );
 } 
